@@ -57,11 +57,13 @@ class Portal:
             password = input("Enter your password: ")
             hash_pass = hashlib.sha256(password.encode()).hexdigest()
 
-            if self.db.validate_login(user_id, hash_pass):
+            if self.db.validate_login(user_id, hash_pass) and self.db.check_bruting(user_id) is False:
                 print("Login successful!")
                 return True
 
             print("Invalid credentials!")
+            self.db.cursor.execute("insert into login_logs(user_id,actions) values(%s,'failed')", (user_id,))
+            self.db.connection.commit()
             retry = input("Try again? (y/n): ")
             if retry.lower() != 'y':
                 return False
