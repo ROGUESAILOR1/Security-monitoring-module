@@ -22,7 +22,7 @@ class SecurityMonitor:
                 user_id varchar(50),
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 actions varchar(50) not null,
-                foreign key (user_id) references users(user_id)
+                foreign key(user_id) references users(user_id)
             )"""
             self.cursor.execute(logs_query)
             self.connection.commit()
@@ -50,25 +50,12 @@ class SecurityMonitor:
         try:
             self.cursor.execute("select password from users where user_id=%s",(user_id,))
             result=self.cursor.fetchone()
-            if result:
+            if result and self.check_bruting(user_id) is False:
                 stored_hash = result[0]
-                if stored_hash == password:
-                    # Log successful login only after confirming user exists
-                    self.cursor.execute(
-                        "INSERT INTO login_logs(user_id, actions) VALUES(%s, 'success')", 
-                        (user_id,)
-                    )
-                    self.connection.commit()
-                    return True
-
-                # If password doesn't match, check for brute force before logging failure
-                if not self.check_bruting(user_id):
-                    # Only log failure if not locked out
-                    self.cursor.execute(
-                        "INSERT INTO login_logs(user_id, actions) VALUES(%s, 'failed')", 
-                        (user_id,)
-                    )
-                    self.connection.commit()
+                return stored_hash == password
+            else:
+                self.cursor.execute("insert into login_logs(user_id,actions) values(%s,'failed')", (user_id,))
+                self.connection.commit()
                 return False
         except pymysql.Error as e:
             print(f"Error validating login{e}")
